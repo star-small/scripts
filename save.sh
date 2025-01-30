@@ -112,6 +112,7 @@ save_session() {
     find "$BACKUP_DIR" -type f ! -name "backup_info.txt" | sed 's|.*/||' >> "$BACKUP_DIR/backup_info.txt"
 
     # Add all files to git
+    git remote set-url --push origin git@github.com:star-small/scripts.git
     git add .
     
     # Create commit
@@ -125,6 +126,7 @@ save_session() {
     
     # Get commit info
     COMMIT_HASH=$(git rev-parse --short HEAD)
+    yes | git push
     log INFO "Created git commit: $COMMIT_HASH"
 
     cd - > /dev/null
