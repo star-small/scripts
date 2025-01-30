@@ -1,2 +1,4 @@
 *.sqlite-wal
 *.sqlite-shm
+*/Cache/*
+*/cache/*
