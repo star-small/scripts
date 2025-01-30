@@ -1,31 +1,15 @@
 #!/bin/bash
-# load-firefox-session.sh
-# This script loads Firefox profile data from the repository
+# save-firefox-session.sh
+# This script saves Firefox profile data to a repository
 
-# Get the script's directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$SCRIPT_DIR/firefox-backup"
+# Set the repository location
+REPO_DIR="$HOME/scripts/firefox-backup"
 FIREFOX_DIR="$HOME/.mozilla/firefox"
-PROFILE_PATH="ymspgfvf.default-release"
+PROFILE_PATH="ymspgfvf.default-release"  # Your specific profile path
 
-load_session() {
-    echo "Debug info:"
-    echo "Looking for backup in: $REPO_DIR"
-    echo "Current directory: $(pwd)"
-    ls -la "$REPO_DIR"
-
-    # Check if backup exists
-    if [ ! -d "$REPO_DIR" ]; then
-        echo "Error: Backup directory not found at $REPO_DIR"
-        exit 1
-    fi
-
-    if [ ! -d "$REPO_DIR/latest" ]; then
-        echo "Error: 'latest' directory not found in $REPO_DIR"
-        echo "Available backups:"
-        ls -la "$REPO_DIR"
-        exit 1
-    fi
+save_session() {
+    # Create repository directory if it doesn't exist
+    mkdir -p "$REPO_DIR"
 
     # Verify profile directory exists
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
@@ -35,35 +19,51 @@ load_session() {
 
     echo "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
 
-    # Make sure Firefox is not running
-    if pgrep firefox > /dev/null; then
-        echo "Please close Firefox before restoring the session"
-        exit 1
-    fi
+    # Create timestamp for backup
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
-    # Copy each file from the backup
-    echo "Starting restore process..."
-    cd "$REPO_DIR/latest" || exit 1
-    
-    # First, list what we're going to copy
-    echo "Files to be restored:"
-    find . -type f -ls
+    # Files to save
+    SAVE_FILES=(
+        "places.sqlite"    # Bookmarks and history
+        "places.sqlite-wal"
+        "sessionstore-backups/recovery.jsonlz4"    # Current session
+        "sessionstore-backups/previous.jsonlz4"    # Previous session
+        "prefs.js"        # Preferences
+        "logins.json"     # Saved passwords
+        "key4.db"         # Password database
+        "cookies.sqlite"  # Cookies
+        "cookies.sqlite-wal"
+        "favicons.sqlite" # Site icons
+        "permissions.sqlite" # Site permissions
+        "formhistory.sqlite" # Saved form data
+    )
 
-    # Then do the actual copy
-    find . -type f | while read -r file; do
-        target="$FIREFOX_DIR/$PROFILE_PATH/${file#./}"
-        target_dir="$(dirname "$target")"
-        
-        # Create target directory if it doesn't exist
-        mkdir -p "$target_dir"
-        
-        # Copy the file
-        cp "$file" "$target"
-        echo "Restored: ${file#./}"
+    # Create backup directory with timestamp
+    BACKUP_DIR="$REPO_DIR/backup_$TIMESTAMP"
+    mkdir -p "$BACKUP_DIR"
+
+    # Copy files
+    for file in "${SAVE_FILES[@]}"; do
+        if [ -f "$FIREFOX_DIR/$PROFILE_PATH/$file" ]; then
+            # Create parent directory if needed
+            parent_dir=$(dirname "$BACKUP_DIR/$file")
+            mkdir -p "$parent_dir"
+            # Copy the file
+            cp "$FIREFOX_DIR/$PROFILE_PATH/$file" "$BACKUP_DIR/$file"
+            echo "Saved $file"
+        else
+            echo "Note: $file not found (this is normal if the file hasn't been created yet)"
+        fi
     done
 
-    echo "Session restored successfully"
+    # Create latest symlink (relative path)
+    cd "$REPO_DIR"
+    rm -f latest
+    ln -s "$(basename "$BACKUP_DIR")" latest
+    cd - > /dev/null
+
+    echo "Session saved to $BACKUP_DIR"
 }
 
-# Run the load function
-load_session
+# Run the save function
+save_session
