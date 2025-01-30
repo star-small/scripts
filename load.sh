@@ -92,6 +92,7 @@ load_session() {
         log DEBUG "Restored .vscode directory"
     else
         log WARN "VSCode backup not found, skipping"
+	ls $BACKUP_DIR/vscode
     fi
 
     log INFO "✔ System restore completed successfully"
