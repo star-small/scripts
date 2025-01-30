@@ -1,26 +1,65 @@
 #!/bin/bash
 # save-firefox-session.sh
-# This script saves Firefox profile data to a repository
+# This script saves Firefox profile data to a repository and maintains git history
+
+# Colors and formatting
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Logging function
+log() {
+    local level=$1
+    shift
+    local color
+    case $level in
+        INFO) color=$GREEN;;
+        WARN) color=$YELLOW;;
+        ERROR) color=$RED;;
+        DEBUG) color=$BLUE;;
+        *) color=$NC;;
+    esac
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${color}[$timestamp] $level: $*${NC}"
+}
 
 # Set the repository location
-REPO_DIR="firefox-backup"
+REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
-PROFILE_PATH="ymspgfvf.default-release"  # Your specific profile path
+PROFILE_PATH="ymspgfvf.default-release"
 
 save_session() {
     # Create repository directory if it doesn't exist
     mkdir -p "$REPO_DIR"
 
+    # Initialize git repository if it doesn't exist
+    if [ ! -d "$REPO_DIR/.git" ]; then
+        log INFO "Initializing git repository..."
+        cd "$REPO_DIR"
+        git init
+        git config user.name "Firefox Backup"
+        git config user.email "firefox.backup@local"
+        echo "*.sqlite-wal" > .gitignore  # Ignore WAL files
+        echo "*.sqlite-shm" >> .gitignore
+        git add .gitignore
+        git commit -m "Initial commit: Setup repository"
+        cd - > /dev/null
+    fi
+
     # Verify profile directory exists
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
-        echo "Error: Profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
+        log ERROR "Profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
         exit 1
     fi
 
-    echo "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
+    log INFO "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
 
     # Create timestamp for backup
     TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    DATE_HUMAN=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Files to save
     SAVE_FILES=(
@@ -41,8 +80,10 @@ save_session() {
     # Create backup directory with timestamp
     BACKUP_DIR="$REPO_DIR/backup_$TIMESTAMP"
     mkdir -p "$BACKUP_DIR"
+    log INFO "Created backup directory: $BACKUP_DIR"
 
     # Copy files
+    log INFO "Starting backup process..."
     for file in "${SAVE_FILES[@]}"; do
         if [ -f "$FIREFOX_DIR/$PROFILE_PATH/$file" ]; then
             # Create parent directory if needed
@@ -50,17 +91,48 @@ save_session() {
             mkdir -p "$parent_dir"
             # Copy the file
             cp "$FIREFOX_DIR/$PROFILE_PATH/$file" "$BACKUP_DIR/$file"
-            echo "Saved $file"
+            log DEBUG "Saved: $file"
         else
-            echo "Note: $file not found (this is normal if the file hasn't been created yet)"
+            log WARN "File not found (normal if not created yet): $file"
         fi
     done
 
     # Create latest symlink
-    rm -f "$REPO_DIR/latest"
-    ln -s "$BACKUP_DIR" "$REPO_DIR/latest"
+    cd "$REPO_DIR"
+    rm -f latest
+    ln -s "$(basename "$BACKUP_DIR")" latest
 
-    echo "Session saved to $BACKUP_DIR"
+    # Git operations
+    log INFO "Committing changes to git repository..."
+    
+    # Create a backup summary
+    echo "Firefox Backup - $DATE_HUMAN" > "$BACKUP_DIR/backup_info.txt"
+    echo "Profile: $PROFILE_PATH" >> "$BACKUP_DIR/backup_info.txt"
+    echo "Files backed up:" >> "$BACKUP_DIR/backup_info.txt"
+    find "$BACKUP_DIR" -type f ! -name "backup_info.txt" | sed 's|.*/||' >> "$BACKUP_DIR/backup_info.txt"
+
+    # Add all files to git
+    git add .
+    
+    # Create commit
+    COMMIT_MSG="Backup $DATE_HUMAN
+
+- Profile: $PROFILE_PATH
+- Timestamp: $TIMESTAMP
+- Directory: backup_$TIMESTAMP"
+
+    git commit -m "$COMMIT_MSG"
+    
+    # Get commit info
+    COMMIT_HASH=$(git rev-parse --short HEAD)
+    log INFO "Created git commit: $COMMIT_HASH"
+
+    cd - > /dev/null
+
+    log INFO "✔ Backup completed successfully:"
+    log INFO "  Location: $BACKUP_DIR"
+    log INFO "  Git commit: $COMMIT_HASH"
+    log INFO "  Time: $DATE_HUMAN"
 }
 
 # Run the save function

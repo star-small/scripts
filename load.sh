@@ -1,76 +1,95 @@
 #!/bin/bash
-# load-firefox-session.sh
-# This script loads Firefox profile data from the repository
+# save-firefox-session.sh
+# This script saves Firefox profile data to a repository
 
-# Get the script's directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$SCRIPT_DIR/firefox-backup"
+# Colors and formatting
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+# Logging function
+log() {
+    local level=$1
+    shift
+    local color
+    case $level in
+        INFO) color=$GREEN;;
+        WARN) color=$YELLOW;;
+        ERROR) color=$RED;;
+        DEBUG) color=$BLUE;;
+        *) color=$NC;;
+    esac
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${color}[$timestamp] $level: $*${NC}"
+}
+
+# Set the repository location
+REPO_DIR="firefox-backup"
 FIREFOX_DIR="$HOME/.mozilla/firefox"
 PROFILE_PATH="ymspgfvf.default-release"
 
-load_session() {
-    echo "Debug info:"
-    echo "Looking for backup in: $REPO_DIR"
-    echo "Current directory: $(pwd)"
-    
-    # Check if backup directory exists
-    if [ ! -d "$REPO_DIR" ]; then
-        echo "Error: Backup directory not found at $REPO_DIR"
-        exit 1
-    fi
-
-    # Find the most recent backup if latest symlink doesn't work
-    BACKUP_DIR=""
-    if [ -d "$REPO_DIR/latest" ]; then
-        BACKUP_DIR="$REPO_DIR/latest"
-    else
-        # Find most recent backup directory
-        BACKUP_DIR=$(ls -dt "$REPO_DIR"/backup_* | head -n 1)
-        if [ -z "$BACKUP_DIR" ]; then
-            echo "Error: No backup directories found in $REPO_DIR"
-            exit 1
-        fi
-    fi
-
-    echo "Using backup directory: $BACKUP_DIR"
+save_session() {
+    # Create repository directory if it doesn't exist
+    mkdir -p "$REPO_DIR"
 
     # Verify profile directory exists
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
-        echo "Error: Profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
+        log ERROR "Profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
         exit 1
     fi
 
-    echo "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
+    log INFO "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
 
-    # Make sure Firefox is not running
-    if pgrep firefox > /dev/null; then
-        echo "Please close Firefox before restoring the session"
-        exit 1
-    fi
+    # Create timestamp for backup
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
-    # Copy each file from the backup
-    echo "Starting restore process..."
-    cd "$BACKUP_DIR" || exit 1
-    
-    # First, list what we're going to copy
-    echo "Files to be restored:"
-    find . -type f -ls
+    # Files to save
+    SAVE_FILES=(
+        "places.sqlite"    # Bookmarks and history
+        "places.sqlite-wal"
+        "sessionstore-backups/recovery.jsonlz4"    # Current session
+        "sessionstore-backups/previous.jsonlz4"    # Previous session
+        "prefs.js"        # Preferences
+        "logins.json"     # Saved passwords
+        "key4.db"         # Password database
+        "cookies.sqlite"  # Cookies
+        "cookies.sqlite-wal"
+        "favicons.sqlite" # Site icons
+        "permissions.sqlite" # Site permissions
+        "formhistory.sqlite" # Saved form data
+    )
 
-    # Then do the actual copy
-    find . -type f | while read -r file; do
-        target="$FIREFOX_DIR/$PROFILE_PATH/${file#./}"
-        target_dir="$(dirname "$target")"
-        
-        # Create target directory if it doesn't exist
-        mkdir -p "$target_dir"
-        
-        # Copy the file
-        cp "$file" "$target"
-        echo "Restored: ${file#./}"
+    # Create backup directory with timestamp
+    BACKUP_DIR="$REPO_DIR/backup_$TIMESTAMP"
+    mkdir -p "$BACKUP_DIR"
+    log INFO "Created backup directory: $BACKUP_DIR"
+
+    # Copy files
+    log INFO "Starting backup process..."
+    for file in "${SAVE_FILES[@]}"; do
+        if [ -f "$FIREFOX_DIR/$PROFILE_PATH/$file" ]; then
+            # Create parent directory if needed
+            parent_dir=$(dirname "$BACKUP_DIR/$file")
+            mkdir -p "$parent_dir"
+            # Copy the file
+            cp "$FIREFOX_DIR/$PROFILE_PATH/$file" "$BACKUP_DIR/$file"
+            log DEBUG "Saved: $file"
+        else
+            log WARN "File not found (normal if not created yet): $file"
+        fi
     done
 
-    echo "Session restored successfully"
+    # Create latest symlink
+    cd "$REPO_DIR"
+    rm -f latest
+    ln -s "$(basename "$BACKUP_DIR")" latest
+    cd - > /dev/null
+
+    log INFO "✔ Backup completed successfully to: $BACKUP_DIR"
 }
 
-# Run the load function
-load_session
+# Run the save function
+save_session
