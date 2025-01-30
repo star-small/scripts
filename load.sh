@@ -1,6 +1,6 @@
 #!/bin/bash
 # load-firefox-session.sh
-# This script loads Firefox profile data and .config directory from the repository
+# This script restores Firefox profile, .config and .vscode data from the repository
 
 # Colors and formatting
 GREEN='\033[0;32m'
@@ -30,6 +30,7 @@ log() {
 REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
 CONFIG_DIR="$HOME/.config"
+VSCODE_DIR="$HOME/.vscode"
 PROFILE_PATH="ymspgfvf.default-release"
 BACKUP_DIR="backup"
 
@@ -47,7 +48,7 @@ load_session() {
         exit 1
     fi
 
-    # Verify target directories exist
+    # Verify Firefox profile directory exists
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
         log ERROR "Firefox profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
         exit 1
@@ -82,9 +83,21 @@ load_session() {
         "$BACKUP_DIR/config/" "$CONFIG_DIR/"
     log DEBUG "Restored .config directory"
 
+    # Restore .vscode directory if it exists in backup
+    if [ -d "$BACKUP_DIR/vscode" ]; then
+        log INFO "Starting VSCode restore..."
+        mkdir -p "$VSCODE_DIR"
+        rsync -av --delete \
+            "$BACKUP_DIR/vscode/" "$VSCODE_DIR/"
+        log DEBUG "Restored .vscode directory"
+    else
+        log WARN "VSCode backup not found, skipping"
+    fi
+
     log INFO "✔ System restore completed successfully"
     log INFO "Firefox files restored: $file_count"
     log INFO "Config directory restored"
+    [ -d "$BACKUP_DIR/vscode" ] && log INFO "VSCode directory restored"
 }
 
 # Run the load function

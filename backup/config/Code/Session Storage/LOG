@@ -1,2 +1,3 @@
-2025/01/31-03:55:05.431 8479f Creating DB /home/student/.config/Code/Session Storage since it was missing.
-2025/01/31-03:55:05.432 8479f Reusing MANIFEST /home/student/.config/Code/Session Storage/MANIFEST-000001
+2025/01/31-04:04:30.478 84ce1 Reusing MANIFEST /home/student/.config/Code/Session Storage/MANIFEST-000001
+2025/01/31-04:04:30.478 84ce1 Recovering log #3
+2025/01/31-04:04:30.478 84ce1 Reusing old log /home/student/.config/Code/Session Storage/000003.log 
