@@ -1,6 +1,6 @@
 #!/bin/bash
 # load-firefox-session.sh
-# This script loads Firefox profile data from the repository
+# This script loads Firefox profile data and .config directory from the repository
 
 # Colors and formatting
 GREEN='\033[0;32m'
@@ -29,27 +29,29 @@ log() {
 # Set the repository location
 REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
+CONFIG_DIR="$HOME/.config"
 PROFILE_PATH="ymspgfvf.default-release"
 BACKUP_DIR="backup"
 
 load_session() {
-    log DEBUG "Starting Firefox session restore..."
+    log DEBUG "Starting system restore..."
     
-    # Check if backup directory exists
-    if [ ! -d "$BACKUP_DIR" ]; then
-        log ERROR "Backup directory not found at $BACKUP_DIR"
+    # Check if backup directories exist
+    if [ ! -d "$BACKUP_DIR/firefox" ]; then
+        log ERROR "Firefox backup directory not found at $BACKUP_DIR/firefox"
         exit 1
     fi
 
-    log INFO "Using backup directory: $BACKUP_DIR"
+    if [ ! -d "$BACKUP_DIR/config" ]; then
+        log ERROR "Config backup directory not found at $BACKUP_DIR/config"
+        exit 1
+    fi
 
-    # Verify profile directory exists
+    # Verify target directories exist
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
-        log ERROR "Profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
+        log ERROR "Firefox profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
         exit 1
     fi
-
-    log INFO "Profile directory: $FIREFOX_DIR/$PROFILE_PATH"
 
     # Make sure Firefox is not running
     if pgrep firefox > /dev/null; then
@@ -57,32 +59,32 @@ load_session() {
         exit 1
     fi
 
-    # Copy each file from the backup
-    log INFO "Starting restore process..."
-    cd "$BACKUP_DIR" || exit 1
+    # Restore Firefox files
+    log INFO "Starting Firefox restore..."
+    cd "$BACKUP_DIR/firefox" || exit 1
     
-    # First, list what we're going to copy
-    log DEBUG "Scanning files to restore..."
-    file_count=$(find . -type f ! -name "backup_info.txt" | wc -l)
-    log INFO "Found $file_count files to restore"
+    file_count=$(find . -type f | wc -l)
+    log INFO "Found $file_count Firefox files to restore"
 
-    # Then do the actual copy
     restored=0
-    find . -type f ! -name "backup_info.txt" | while read -r file; do
+    find . -type f | while read -r file; do
         target="$FIREFOX_DIR/$PROFILE_PATH/${file#./}"
         target_dir="$(dirname "$target")"
-        
-        # Create target directory if it doesn't exist
         mkdir -p "$target_dir"
-        
-        # Copy the file
         cp "$file" "$target"
         ((restored++))
-        log DEBUG "Restored ($restored/$file_count): ${file#./}"
+        log DEBUG "Restored Firefox ($restored/$file_count): ${file#./}"
     done
 
-    log INFO "✔ Session restore completed successfully"
-    log INFO "Total files restored: $file_count"
+    # Restore .config directory
+    log INFO "Starting .config restore..."
+    rsync -av --delete \
+        "$BACKUP_DIR/config/" "$CONFIG_DIR/"
+    log DEBUG "Restored .config directory"
+
+    log INFO "✔ System restore completed successfully"
+    log INFO "Firefox files restored: $file_count"
+    log INFO "Config directory restored"
 }
 
 # Run the load function
