@@ -43,6 +43,14 @@ URLS=(
 init_system() {
     log INFO "Starting system initialization..."
 
+    # Run conf script
+    log INFO "Loading system configuration..."
+    if [ -f "$SCRIPT_DIR/conf.sh" ]; then
+        bash "$SCRIPT_DIR/conf.sh"
+    else
+        log ERROR "conf.sh not found in $SCRIPT_DIR"
+        exit 1
+    fi
     # Run load script
     log INFO "Loading system configuration..."
     if [ -f "$SCRIPT_DIR/load.sh" ]; then
