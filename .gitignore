@@ -2,3 +2,6 @@
 *.sqlite-shm
 */Cache/*
 */cache/*
+*/CachedData/*
+*/CachedExtensions/*
+*/logs/*
