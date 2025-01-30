@@ -1,6 +1,6 @@
 #!/bin/bash
-# save-firefox-session.sh
-# This script saves Firefox profile data to a repository
+# load-firefox-session.sh
+# This script loads Firefox profile data from the repository
 
 # Colors and formatting
 GREEN='\033[0;32m'
@@ -27,13 +27,21 @@ log() {
 }
 
 # Set the repository location
-REPO_DIR="firefox-backup"
+REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
 PROFILE_PATH="ymspgfvf.default-release"
+BACKUP_DIR="$REPO_DIR/backup"
 
-save_session() {
-    # Create repository directory if it doesn't exist
-    mkdir -p "$REPO_DIR"
+load_session() {
+    log DEBUG "Starting Firefox session restore..."
+    
+    # Check if backup directory exists
+    if [ ! -d "$BACKUP_DIR" ]; then
+        log ERROR "Backup directory not found at $BACKUP_DIR"
+        exit 1
+    fi
+
+    log INFO "Using backup directory: $BACKUP_DIR"
 
     # Verify profile directory exists
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
@@ -41,55 +49,41 @@ save_session() {
         exit 1
     fi
 
-    log INFO "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
+    log INFO "Profile directory: $FIREFOX_DIR/$PROFILE_PATH"
 
-    # Create timestamp for backup
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    # Make sure Firefox is not running
+    if pgrep firefox > /dev/null; then
+        log ERROR "Please close Firefox before restoring the session"
+        exit 1
+    fi
 
-    # Files to save
-    SAVE_FILES=(
-        "places.sqlite"    # Bookmarks and history
-        "places.sqlite-wal"
-        "sessionstore-backups/recovery.jsonlz4"    # Current session
-        "sessionstore-backups/previous.jsonlz4"    # Previous session
-        "prefs.js"        # Preferences
-        "logins.json"     # Saved passwords
-        "key4.db"         # Password database
-        "cookies.sqlite"  # Cookies
-        "cookies.sqlite-wal"
-        "favicons.sqlite" # Site icons
-        "permissions.sqlite" # Site permissions
-        "formhistory.sqlite" # Saved form data
-    )
+    # Copy each file from the backup
+    log INFO "Starting restore process..."
+    cd "$BACKUP_DIR" || exit 1
+    
+    # First, list what we're going to copy
+    log DEBUG "Scanning files to restore..."
+    file_count=$(find . -type f ! -name "backup_info.txt" | wc -l)
+    log INFO "Found $file_count files to restore"
 
-    # Create backup directory with timestamp
-    BACKUP_DIR="$REPO_DIR/backup_$TIMESTAMP"
-    mkdir -p "$BACKUP_DIR"
-    log INFO "Created backup directory: $BACKUP_DIR"
-
-    # Copy files
-    log INFO "Starting backup process..."
-    for file in "${SAVE_FILES[@]}"; do
-        if [ -f "$FIREFOX_DIR/$PROFILE_PATH/$file" ]; then
-            # Create parent directory if needed
-            parent_dir=$(dirname "$BACKUP_DIR/$file")
-            mkdir -p "$parent_dir"
-            # Copy the file
-            cp "$FIREFOX_DIR/$PROFILE_PATH/$file" "$BACKUP_DIR/$file"
-            log DEBUG "Saved: $file"
-        else
-            log WARN "File not found (normal if not created yet): $file"
-        fi
+    # Then do the actual copy
+    restored=0
+    find . -type f ! -name "backup_info.txt" | while read -r file; do
+        target="$FIREFOX_DIR/$PROFILE_PATH/${file#./}"
+        target_dir="$(dirname "$target")"
+        
+        # Create target directory if it doesn't exist
+        mkdir -p "$target_dir"
+        
+        # Copy the file
+        cp "$file" "$target"
+        ((restored++))
+        log DEBUG "Restored ($restored/$file_count): ${file#./}"
     done
 
-    # Create latest symlink
-    cd "$REPO_DIR"
-    rm -f latest
-    ln -s "$(basename "$BACKUP_DIR")" latest
-    cd - > /dev/null
-
-    log INFO "✔ Backup completed successfully to: $BACKUP_DIR"
+    log INFO "✔ Session restore completed successfully"
+    log INFO "Total files restored: $file_count"
 }
 
-# Run the save function
-save_session
+# Run the load function
+load_session

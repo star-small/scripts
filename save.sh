@@ -30,10 +30,11 @@ log() {
 REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
 PROFILE_PATH="ymspgfvf.default-release"
+BACKUP_DIR="$REPO_DIR/backup"
 
 save_session() {
     # Create repository directory if it doesn't exist
-    mkdir -p "$REPO_DIR"
+    mkdir -p "$BACKUP_DIR"
 
     # Initialize git repository if it doesn't exist
     if [ ! -d "$REPO_DIR/.git" ]; then
@@ -57,8 +58,7 @@ save_session() {
 
     log INFO "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
 
-    # Create timestamp for backup
-    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    # Get current timestamp for commit message
     DATE_HUMAN=$(date '+%Y-%m-%d %H:%M:%S')
 
     # Files to save
@@ -77,11 +77,6 @@ save_session() {
         "formhistory.sqlite" # Saved form data
     )
 
-    # Create backup directory with timestamp
-    BACKUP_DIR="$REPO_DIR/backup_$TIMESTAMP"
-    mkdir -p "$BACKUP_DIR"
-    log INFO "Created backup directory: $BACKUP_DIR"
-
     # Copy files
     log INFO "Starting backup process..."
     for file in "${SAVE_FILES[@]}"; do
@@ -97,16 +92,12 @@ save_session() {
         fi
     done
 
-    # Create latest symlink
-    cd "$REPO_DIR"
-    rm -f latest
-    ln -s "$(basename "$BACKUP_DIR")" latest
-
     # Git operations
+    cd "$REPO_DIR"
     log INFO "Committing changes to git repository..."
     
-    # Create a backup summary
-    echo "Firefox Backup - $DATE_HUMAN" > "$BACKUP_DIR/backup_info.txt"
+    # Create/update backup summary
+    echo "Firefox Backup - Last updated: $DATE_HUMAN" > "$BACKUP_DIR/backup_info.txt"
     echo "Profile: $PROFILE_PATH" >> "$BACKUP_DIR/backup_info.txt"
     echo "Files backed up:" >> "$BACKUP_DIR/backup_info.txt"
     find "$BACKUP_DIR" -type f ! -name "backup_info.txt" | sed 's|.*/||' >> "$BACKUP_DIR/backup_info.txt"
@@ -116,11 +107,10 @@ save_session() {
     git add .
     
     # Create commit
-    COMMIT_MSG="Backup $DATE_HUMAN
+    COMMIT_MSG="Backup Update $DATE_HUMAN
 
 - Profile: $PROFILE_PATH
-- Timestamp: $TIMESTAMP
-- Directory: backup_$TIMESTAMP"
+- Updated: $DATE_HUMAN"
 
     git commit -m "$COMMIT_MSG"
     
