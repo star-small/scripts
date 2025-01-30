@@ -19,7 +19,7 @@ echo -e "\nYour SSH public key:"
 cat ~/.ssh/id_ed25519.pub
 
 # Open GitHub SSH key settings in Firefox
-firefox https://github.com/settings/ssh/new
-firefox https://platform.alem.school/git/user/settings/keys
+firefox https://github.com/settings/ssh/new &
+firefox https://platform.alem.school/git/user/settings/keys &
 
 echo "Script completed! You can now add your SSH key to GitHub."
