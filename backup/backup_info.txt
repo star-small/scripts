@@ -1,15 +1,3 @@
-Firefox Backup - Last updated: 2025-01-31 03:37:05
-Profile: ymspgfvf.default-release
-Files backed up:
-places.sqlite
-formhistory.sqlite
-favicons.sqlite
-key4.db
-prefs.js
-permissions.sqlite
-places.sqlite-wal
-cookies.sqlite-wal
-cookies.sqlite
-recovery.jsonlz4
-previous.jsonlz4
-logins.json
+System Backup - Last updated: 2025-01-31 03:53:57
+Firefox Profile: ymspgfvf.default-release
+Config Directory: /home/student/.config

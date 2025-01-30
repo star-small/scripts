@@ -1,6 +1,6 @@
 #!/bin/bash
 # save-firefox-session.sh
-# This script saves Firefox profile data to a repository and maintains git history
+# This script saves Firefox profile data and .config directory to a repository
 
 # Colors and formatting
 GREEN='\033[0;32m'
@@ -29,12 +29,14 @@ log() {
 # Set the repository location
 REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
+CONFIG_DIR="$HOME/.config"
 PROFILE_PATH="ymspgfvf.default-release"
 BACKUP_DIR="backup"
 
 save_session() {
-    # Create repository directory if it doesn't exist
-    mkdir -p "$BACKUP_DIR"
+    # Create repository and backup directories if they don't exist
+    mkdir -p "$BACKUP_DIR/firefox"
+    mkdir -p "$BACKUP_DIR/config"
 
     # Initialize git repository if it doesn't exist
     if [ ! -d "$REPO_DIR/.git" ]; then
@@ -45,24 +47,32 @@ save_session() {
         git config user.email "firefox.backup@local"
         echo "*.sqlite-wal" > .gitignore  # Ignore WAL files
         echo "*.sqlite-shm" >> .gitignore
+        echo "*/Cache/*" >> .gitignore    # Ignore cache directories
+        echo "*/cache/*" >> .gitignore
         git add .gitignore
         git commit -m "Initial commit: Setup repository"
         cd - > /dev/null
     fi
 
-    # Verify profile directory exists
+    # Verify directories exist
     if [ ! -d "$FIREFOX_DIR/$PROFILE_PATH" ]; then
-        log ERROR "Profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
+        log ERROR "Firefox profile directory not found at $FIREFOX_DIR/$PROFILE_PATH"
         exit 1
     fi
 
-    log INFO "Using profile directory: $FIREFOX_DIR/$PROFILE_PATH"
+    if [ ! -d "$CONFIG_DIR" ]; then
+        log ERROR "Config directory not found at $CONFIG_DIR"
+        exit 1
+    fi
+
+    log INFO "Using Firefox profile: $FIREFOX_DIR/$PROFILE_PATH"
+    log INFO "Using config directory: $CONFIG_DIR"
 
     # Get current timestamp for commit message
     DATE_HUMAN=$(date '+%Y-%m-%d %H:%M:%S')
 
-    # Files to save
-    SAVE_FILES=(
+    # Firefox files to save
+    FIREFOX_FILES=(
         "places.sqlite"    # Bookmarks and history
         "places.sqlite-wal"
         "sessionstore-backups/recovery.jsonlz4"    # Current session
@@ -77,39 +87,50 @@ save_session() {
         "formhistory.sqlite" # Saved form data
     )
 
-    # Copy files
-    log INFO "Starting backup process..."
-    for file in "${SAVE_FILES[@]}"; do
+    # Save Firefox files
+    log INFO "Starting Firefox backup..."
+    for file in "${FIREFOX_FILES[@]}"; do
         if [ -f "$FIREFOX_DIR/$PROFILE_PATH/$file" ]; then
-            # Create parent directory if needed
-            parent_dir=$(dirname "$BACKUP_DIR/$file")
+            parent_dir=$(dirname "$BACKUP_DIR/firefox/$file")
             mkdir -p "$parent_dir"
-            # Copy the file
-            cp "$FIREFOX_DIR/$PROFILE_PATH/$file" "$BACKUP_DIR/$file"
-            log DEBUG "Saved: $file"
+            cp "$FIREFOX_DIR/$PROFILE_PATH/$file" "$BACKUP_DIR/firefox/$file"
+            log DEBUG "Saved Firefox: $file"
         else
-            log WARN "File not found (normal if not created yet): $file"
+            log WARN "Firefox file not found (normal if not created yet): $file"
         fi
     done
+
+    # Save .config directory
+    log INFO "Starting .config backup..."
+    rsync -av --delete \
+        --exclude 'Cache*' \
+        --exclude 'cache*' \
+        --exclude '*.log' \
+        --exclude 'chromium' \
+        --exclude 'google-chrome' \
+        --exclude 'Microsoft*' \
+        --exclude 'pulse' \
+        "$CONFIG_DIR/" "$BACKUP_DIR/config/"
+    log DEBUG "Saved .config directory"
 
     # Git operations
     cd "$REPO_DIR"
     log INFO "Committing changes to git repository..."
     
     # Create/update backup summary
-    echo "Firefox Backup - Last updated: $DATE_HUMAN" > "$BACKUP_DIR/backup_info.txt"
-    echo "Profile: $PROFILE_PATH" >> "$BACKUP_DIR/backup_info.txt"
-    echo "Files backed up:" >> "$BACKUP_DIR/backup_info.txt"
-    find "$BACKUP_DIR" -type f ! -name "backup_info.txt" | sed 's|.*/||' >> "$BACKUP_DIR/backup_info.txt"
+    echo "System Backup - Last updated: $DATE_HUMAN" > "$BACKUP_DIR/backup_info.txt"
+    echo "Firefox Profile: $PROFILE_PATH" >> "$BACKUP_DIR/backup_info.txt"
+    echo "Config Directory: $CONFIG_DIR" >> "$BACKUP_DIR/backup_info.txt"
 
     # Add all files to git
     git remote set-url --push origin git@github.com:star-small/scripts.git
     git add .
     
     # Create commit
-    COMMIT_MSG="Backup Update $DATE_HUMAN
+    COMMIT_MSG="System Backup Update $DATE_HUMAN
 
-- Profile: $PROFILE_PATH
+- Firefox Profile: $PROFILE_PATH
+- Config Directory: $CONFIG_DIR
 - Updated: $DATE_HUMAN"
 
     git commit -m "$COMMIT_MSG"
