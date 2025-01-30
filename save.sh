@@ -30,7 +30,7 @@ log() {
 REPO_DIR=""
 FIREFOX_DIR="$HOME/.mozilla/firefox"
 PROFILE_PATH="ymspgfvf.default-release"
-BACKUP_DIR="$REPO_DIR/backup"
+BACKUP_DIR="backup"
 
 save_session() {
     # Create repository directory if it doesn't exist
