@@ -4,10 +4,8 @@ git config --global user.name "grzegorz brzęczyszczykiewicz"
 git config --global user.email "starsmall890@gmail.com"
 # Generate SSH key
 echo "Generating SSH key..."
-yes |ssh-keygen -t ed25519
+yes | ssh-keygen -t ed25519
 
-# Start ssh-agent in the background
-eval "$(ssh-agent -s)"
 
 # Add SSH private key to ssh-agent
 ssh-add ~/.ssh/id_ed25519
