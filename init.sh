@@ -42,6 +42,8 @@ URLS=(
 
 init_system() {
     log INFO "Starting system initialization..."
+    log INFO "Configuring git"
+    bash conf.sh
 
     # Run conf script
     log INFO "Loading system configuration..."

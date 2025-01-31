@@ -186,7 +186,7 @@ user_pref("sidebar.backupState", "{\"width\":\"\",\"command\":\"\"}");
 user_pref("signon.management.page.os-auth.optout", "MDIEEPgAAAAAAAAAAAAAAAAAAAEwFAYIKoZIhvcNAwcECJO21sKoPZ0SBAguQnB2JfGaSg==");
 user_pref("storage.vacuum.last.index", 0);
 user_pref("storage.vacuum.last.places.sqlite", 1738246153);
-user_pref("toolkit.startup.last_success", 1738282579);
+user_pref("toolkit.startup.last_success", 1738283127);
 user_pref("toolkit.telemetry.cachedClientID", "38f9434a-c357-43e4-8d14-0212afe6a343");
 user_pref("toolkit.telemetry.cachedProfileGroupID", "38f9434a-c357-43e4-8d14-0212afe6a343");
 user_pref("toolkit.telemetry.previousBuildID", "20241121140525");
